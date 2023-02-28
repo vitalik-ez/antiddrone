@@ -1,0 +1,85 @@
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.12.0/dist/tf.min.js"></script>
+​
+<script>
+
+    async function loadModel() {
+        return tf.loadGraphModel('efficientdet_d0_web_model/model.json');
+    }
+
+    async function doPredict() {
+
+        const model = await loadModel();
+        console.log("model was loaded", model);
+       
+
+        const image = document.getElementById("image");
+        let imageTensor = preprocess_tf(image);
+        //imageTensor = tf.cast(imageTensor, 'int32');
+
+
+        //tf.engine().startScope();
+        console.log(imageTensor);
+        let output = await model.executeAsync(imageTensor);
+
+        const boxes = output[4].dataSync();
+        const scores = output[5].arraySync();
+        const classes = output[6].dataSync();
+
+
+        console.log("boxes", boxes);
+        console.log("scores", scores);
+        console.log("classes", classes);
+
+        let classThreshold = 0.1;
+        let labels = ['kangaroo'];
+        console.log("scores", scores);
+        for (let i = 0; i < scores[0].length; ++i) {
+            //console.log(scores[i], classThreshold);
+            console.log(scores[i] > classThreshold)
+            if (scores[i] > classThreshold) {
+                const klass = labels[classes[i]];
+                const score = (scores[i] * 100).toFixed(1);
+                
+                let [x1, y1, x2, y2] = boxes.slice(i * 4, (i + 1) * 4);
+
+                console.log("x1, y1, x2, y2", x1, y1, x2, y2);
+                console.log("score", score);
+                console.log("klass", klass);
+
+                console.log("bbox coordinates need to be scaled", x1, y1, x2, y2);
+            }
+        }
+
+        console.log("end");
+        //tf.engine().endScope();
+    }
+
+    function preprocess(imageData) {
+        let imageTensor = tf.browser.fromPixels(imageData, numChannels = 3);
+        const resized = tf.image.resizeBilinear(imageTensor, [640, 640]).toFloat()
+        const offset = tf.scalar(255.0);
+        const normalized = tf.scalar(1.0).sub(resized.div(offset));
+        const batched = normalized.expandDims(0);
+        return batched;
+    }
+
+    function preprocess_tf(imageData) {
+        let imageTensor = tf.browser.fromPixels(imageData, numChannels = 3);
+        //const resized = tf.image.resizeBilinear(imageTensor, [320, 320]);
+        /*const offset = tf.scalar(255.0);
+        const normalized = tf.scalar(1.0).sub(resized.div(offset));*/
+        const batched = imageTensor.expandDims(0);
+        return batched;
+    }
+
+</script>
+
+<html>
+
+<body onload="doPredict()">
+    <img id="image" src="Chinatown-2.jpg" />
+    <canvas id="result" width="800" height="800">
+
+</body>
+
+</html>
